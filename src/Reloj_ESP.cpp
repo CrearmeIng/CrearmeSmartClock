@@ -3,7 +3,7 @@
 //************* Declare included libraries ******************************
 #include <NTPClient.h>
 #include <Time.h>
-#include <TimeLib.h>
+//#include <TimeLib.h>
 #include <SmartLeds.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
@@ -12,21 +12,12 @@ const int LED_COUNT = 84;
 const int DATA_PIN = 14;
 const int CHANNEL = 0;
 
-//************* Declare structures ******************************
+// -------------------- Declare structures --------------------
 
 //Create structure for time information
 struct TIME
 {
 	byte Hour, Minute;
-};
-
-enum phase
-{
-	off,
-	background,
-	divisions,
-	quarters,
-	currTime
 };
 
 // -------------------- Editable Options --------------------
@@ -83,18 +74,9 @@ SmartLed pixels(LED_WS2812B, LED_COUNT, DATA_PIN, CHANNEL, DoubleBuffer);
 // -------------------- Setup function for Wol_Clock --------------------
 void setup()
 {
-	pixels.begin();   // This initializes the NeoPixel library.
-	Draw_Clock(0, 1); // Just draw a blank clock
-
 	WiFi.begin(ssid, password); // Try to connect to WiFi
-	Draw_Clock(0, 2);			// Draw the clock background
-
-	while (WiFi.status() != WL_CONNECTED)
-		delay(500); // keep waiging until we successfully connect to the WiFi
-
-	Draw_Clock(0, 3); // Add the quater hour indicators
-
-	SetClockFromNTP(); // get the time from the NTP server with timezone correction
+	while (WiFi.status() != WL_CONNECTED) delay(500);	// keep waiging until we successfully connect to the WiFi
+	SetClockFromNTP();									// get the time from the NTP server with timezone correction
 }
 
 void SetClockFromNTP()
@@ -128,39 +110,22 @@ void loop()
 // -------------------- Functions to draw the clock --------------------
 void Draw_Clock(time_t t, byte Phase)
 {
-	if (Phase <= off) {
-		for (int i = 0; i < 84; i++) {
-			pixels[i] = Rgb{0, 0, 0};					// for Phase = 0 or less, all pixels are black
+	for (int i = 0; i < 84; i++) {
+		if (i < 60){
+			if (i == second(t)) pixels[i] = Second;
+			else if (i == minute(t)) pixels[i] = Minute;
+			else if(i == 0) pixels[i] = Twelve;
+			else if(i%15 == 0) pixels[i] = Quarters;
+			else if(i%5 == 0) pixels[i] = Divisions;
+			else pixels[i] = Background;
+		} else {
+			if (i == ((hour(t) % 12) * 2) + 60) pixels[i] = Hour;
+			else if(i == 60) pixels[i] = Twelve;
+			else pixels[i] = Background;
 		}
-	}
-	if (Phase >= background) {
-		for (int i = 0; i < 84; i++) {
-			pixels[i] = Background;						// for Phase = 1 or more, draw minutes with Background colour
-		}
-	}
-	if (Phase >= divisions) {
-		for (int i = 0; i < 60; i = i + 5) {
-			pixels[i] = Divisions;						// for Phase = 2 or more, draw 5 minute divisions
-		}
-	}
-	if (Phase >= quarters) {
-		for (int i = 0; i < 60; i = i + 15) {
-			pixels[i] = Quarters;						// for Phase = 3 or more, draw 15 minute divisions
-		}
-		pixels[i] = Twelve;								// for Phase = 3 and above, draw 12 o'clock indicator
-		for (int i = 0; i < 24; i = i + 6) {
-			pixels[i] = Quarters;						// for Phase = 3 or more, draw 15 minute divisions
-		}
-		pixels[60] = Twelve;							// for Phase = 3 and above, draw 12 o'clock indicator
 	}
 
-	if (Phase >= currTime) {
-		pixels[second(t)] = Second;						// draw the second hand first
-		pixels[minute(t)] = Minute;						// draw the minute hand
-		pixels[((hour(t) % 12) * 2) + 60] = Hour;		// draw the hour hand last
-	}
-
-	SetBrightness(t);									// Set the clock brightness dependant on the time
+	//SetBrightness(t);									// Set the clock brightness dependant on the time
 	pixels.show();										// show all the pixels
 }
 
@@ -172,11 +137,11 @@ void Draw_Clock(time_t t, byte Phase)
 
 	if ((weekday() >= 2) && (weekday() <= 6))
 		if ((NowHour > WeekNight.Hour) || ((NowHour == WeekNight.Hour) && (NowMinute >= WeekNight.Minute)) || ((NowHour == WeekMorning.Hour) && (NowMinute <= WeekMorning.Minute)) || (NowHour < WeekMorning.Hour))
-			pixels.setBrightness(night_brightness);
+			//pixels.setBrightness(night_brightness);
 		else
-			pixels.setBrightness(day_brightness);
+			//pixels.setBrightness(day_brightness);
 	else if ((NowHour > WeekendNight.Hour) || ((NowHour == WeekendNight.Hour) && (NowMinute >= WeekendNight.Minute)) || ((NowHour == WeekendMorning.Hour) && (NowMinute <= WeekendMorning.Minute)) || (NowHour < WeekendMorning.Hour))
-		pixels.setBrightness(night_brightness);
+		//.setBrightness(night_brightness);
 	else
-		pixels.setBrightness(day_brightness);
+		//pixels.setBrightness(day_brightness);
 }*/
