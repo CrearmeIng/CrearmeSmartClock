@@ -2,8 +2,8 @@
 
 //************* Declare included libraries ******************************
 #include <NTPClient.h>
-#include <Time.h>
-//#include <TimeLib.h>
+//#include <Time.h>
+#include <TimeLib.h>
 #include <SmartLeds.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
@@ -17,7 +17,7 @@ const int CHANNEL = 0;
 // -------------------- Declare structures --------------------
 
 //Create structure for time information
-struct TIME
+struct TimeStr
 {
 	byte Hour, Minute;
 };
@@ -38,16 +38,21 @@ const Rgb Second = {32, 0, 16};							//The Second hand
 const char ClockGoBackwards = 0;						// Make clock go forwards or backwards (dependant on hardware)
 
 // Set brightness by time for night and day mode
-const TIME WeekNight = {21, 30};						// Night time to go dim
-const TIME WeekMorning = {6, 15};						//Morning time to go bright
-const TIME WeekendNight = {21, 30};						// Night time to go dim
-const TIME WeekendMorning = {9, 30};					//Morning time to go bright
+const TimeStr WeekNight = {21, 30};						// Night time to go dim
+const TimeStr WeekMorning = {6, 15};						//Morning time to go bright
+const TimeStr WeekendNight = {21, 30};						// Night time to go dim
+const TimeStr WeekendMorning = {9, 30};					//Morning time to go bright
 
 const int day_brightness = 128;
 const int night_brightness = 16;
 
 // Set your timezone in hours difference rom GMT
 const int hours_Offset_From_GMT = -5;
+
+RtcDS3231<TwoWire> Rtc(Wire);
+SmartLed pixels(LED_WS2812B, LED_COUNT, DATA_PIN, CHANNEL, DoubleBuffer);
+WiFiUDP ntpUDP;											// By default 'time.nist.gov' is used.
+NTPClient timeClient(ntpUDP);
 
 // -------------------- WiFi Configuration --------------------
 const char *ssid = "Familia Gil Vargas";				//  your network SSID (name)
@@ -56,14 +61,6 @@ const char *password = "dVarAlz0725*";					// your network password
 //const char *password  = "Corporativo0725*";			// your network password
 
 byte SetClock;
-
-// By default 'time.nist.gov' is used.
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
-
-// -------------------- Declarations --------------------
-SmartLed pixels(LED_WS2812B, LED_COUNT, DATA_PIN, CHANNEL, DoubleBuffer);
-
 // -------------------- Methods --------------------
 /*void SetBrightness(time_t t)						// Function to set the clock brightness
 {
@@ -101,35 +98,46 @@ void Draw_Clock(time_t t, byte Phase) // Function to draw the clock
 	//SetBrightness(t);									// Set the clock brightness dependant on the time
 	pixels.show();										// show all the pixels
 }
-
-
-
-void SetClockFromNTP()
+void SetRTCFromNtp()
 {
 	timeClient.update();								// get the time from the NTP server
-	setTime(timeClient.getEpochTime());					// Set the system time from the clock
-	adjustTime(hours_Offset_From_GMT * 3600);			// offset the system time with the user defined timezone (3600 seconds in an hour)
+	RtcDateTime dt = RtcDateTime(timeClient.getEpochTime());
+	Rtc.SetDateTime(dt);
+	dt = Rtc.GetDateTime();
+	Serial.printf("%i/%i/%i, %i:%i:%i\r\n",dt.Year(),dt.Month(),dt.Day(),dt.Hour(),dt.Minute(),dt.Second());
+}
+
+time_t rtcGet(){
+	return Rtc.GetDateTime().Epoch32Time();
 }
 
 // -------------------- Setup function for Wol_Clock --------------------
 void setup()
 {
+	Serial.begin(115200);
+	Rtc.Begin();
+	Rtc.Enable32kHzPin(false);
+	Rtc.SetSquareWavePin(DS3231SquareWavePin_ModeClock);
+	Rtc.SetSquareWavePinClockFrequency(DS3231SquareWaveClock_1Hz);
 	WiFi.begin(ssid, password); // Try to connect to WiFi
-	while (WiFi.status() != WL_CONNECTED) delay(500);	// keep waiging until we successfully connect to the WiFi
-	SetClockFromNTP();									// get the time from the NTP server with timezone correction
+	delay(5000);
+	while (WiFi.status() != WL_CONNECTED) 
+	SetRTCFromNtp();								// get the time from the NTP server with timezone correction
+	setSyncProvider(rtcGet);
+	adjustTime(-5*3600);
 }
 
 // -------------------- Main program loop for Wol_Clock --------------------
 void loop()
 {
-	time_t t = now();									// Get the current time
+	/*time_t t = now();									// Get the current time
 
 	Draw_Clock(t, 4);									// Draw the whole clock face with hours minutes and seconds
 	if (minute(t) == 0)
 	{													// at the start of each hour, update the time from the time server
 		if (SetClock == 1)
 		{
-			SetClockFromNTP();							// get the time from the NTP server with timezone correction
+			SetRTCFromNtp();							// get the time from the NTP server with timezone correction
 			SetClock = 0;
 		}
 	}
@@ -137,5 +145,8 @@ void loop()
 	{
 		delay(200);										// Just wait for 0.1 seconds
 		SetClock = 1;
-	}
+	}*/
+	RtcDateTime dt = Rtc.GetDateTime();
+	Serial.printf("%i/%i/%i, %i:%i:%i\r\n",dt.Year(),dt.Month(),dt.Day(),dt.Hour(),dt.Minute(),dt.Second());
+	delay(1000);
 }
