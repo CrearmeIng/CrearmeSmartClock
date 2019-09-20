@@ -7,6 +7,8 @@
 #include <SmartLeds.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include <Wire.h>
+#include <RtcDS3231.h>
 
 const int LED_COUNT = 84;
 const int DATA_PIN = 14;
@@ -47,7 +49,7 @@ const int night_brightness = 16;
 // Set your timezone in hours difference rom GMT
 const int hours_Offset_From_GMT = -5;
 
-// -------------------- Configuraciones WiFi --------------------
+// -------------------- WiFi Configuration --------------------
 const char *ssid = "Familia Gil Vargas";				//  your network SSID (name)
 const char *password = "dVarAlz0725*";					// your network password
 //const char *ssid      = "CrearmeIng_Corp";			//  your network SSID (name)
@@ -59,17 +61,55 @@ byte SetClock;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 
-// Which pin on the ESP8266 is connected to the NeoPixels?
-#define PIN 14 // This is the D5 pin
-
-// -------------------- Declare user functions --------------------
-void Draw_Clock(time_t t, byte Phase);
-int ClockCorrect(int Pixel);
-void SetBrightness(time_t t);
-void SetClockFromNTP();
-
-// -------------------- Declare SmartLeds --------------------
+// -------------------- Declarations --------------------
 SmartLed pixels(LED_WS2812B, LED_COUNT, DATA_PIN, CHANNEL, DoubleBuffer);
+
+// -------------------- Methods --------------------
+/*void SetBrightness(time_t t)						// Function to set the clock brightness
+{
+	int NowHour = hour(t);
+	int NowMinute = minute(t);
+
+	if ((weekday() >= 2) && (weekday() <= 6))
+		if ((NowHour > WeekNight.Hour) || ((NowHour == WeekNight.Hour) && (NowMinute >= WeekNight.Minute)) || ((NowHour == WeekMorning.Hour) && (NowMinute <= WeekMorning.Minute)) || (NowHour < WeekMorning.Hour))
+			//pixels.setBrightness(night_brightness);
+		else
+			//pixels.setBrightness(day_brightness);
+	else if ((NowHour > WeekendNight.Hour) || ((NowHour == WeekendNight.Hour) && (NowMinute >= WeekendNight.Minute)) || ((NowHour == WeekendMorning.Hour) && (NowMinute <= WeekendMorning.Minute)) || (NowHour < WeekendMorning.Hour))
+		//.setBrightness(night_brightness);
+	else
+		//pixels.setBrightness(day_brightness);
+}*/
+
+void Draw_Clock(time_t t, byte Phase) // Function to draw the clock
+{
+	for (int i = 0; i < 84; i++) {
+		if (i < 60){
+			if (i == second(t)) pixels[i] = Second;
+			else if (i == minute(t)) pixels[i] = Minute;
+			else if(i == 0) pixels[i] = Twelve;
+			else if(i%15 == 0) pixels[i] = Quarters;
+			else if(i%5 == 0) pixels[i] = Divisions;
+			else pixels[i] = Background;
+		} else {
+			if (i == ((hour(t) % 12) * 2) + 60) pixels[i] = Hour;
+			else if(i == 60) pixels[i] = Twelve;
+			else pixels[i] = Background;
+		}
+	}
+
+	//SetBrightness(t);									// Set the clock brightness dependant on the time
+	pixels.show();										// show all the pixels
+}
+
+
+
+void SetClockFromNTP()
+{
+	timeClient.update();								// get the time from the NTP server
+	setTime(timeClient.getEpochTime());					// Set the system time from the clock
+	adjustTime(hours_Offset_From_GMT * 3600);			// offset the system time with the user defined timezone (3600 seconds in an hour)
+}
 
 // -------------------- Setup function for Wol_Clock --------------------
 void setup()
@@ -77,13 +117,6 @@ void setup()
 	WiFi.begin(ssid, password); // Try to connect to WiFi
 	while (WiFi.status() != WL_CONNECTED) delay(500);	// keep waiging until we successfully connect to the WiFi
 	SetClockFromNTP();									// get the time from the NTP server with timezone correction
-}
-
-void SetClockFromNTP()
-{
-	timeClient.update();								// get the time from the NTP server
-	setTime(timeClient.getEpochTime());					// Set the system time from the clock
-	adjustTime(hours_Offset_From_GMT * 3600);			// offset the system time with the user defined timezone (3600 seconds in an hour)
 }
 
 // -------------------- Main program loop for Wol_Clock --------------------
@@ -106,42 +139,3 @@ void loop()
 		SetClock = 1;
 	}
 }
-
-// -------------------- Functions to draw the clock --------------------
-void Draw_Clock(time_t t, byte Phase)
-{
-	for (int i = 0; i < 84; i++) {
-		if (i < 60){
-			if (i == second(t)) pixels[i] = Second;
-			else if (i == minute(t)) pixels[i] = Minute;
-			else if(i == 0) pixels[i] = Twelve;
-			else if(i%15 == 0) pixels[i] = Quarters;
-			else if(i%5 == 0) pixels[i] = Divisions;
-			else pixels[i] = Background;
-		} else {
-			if (i == ((hour(t) % 12) * 2) + 60) pixels[i] = Hour;
-			else if(i == 60) pixels[i] = Twelve;
-			else pixels[i] = Background;
-		}
-	}
-
-	//SetBrightness(t);									// Set the clock brightness dependant on the time
-	pixels.show();										// show all the pixels
-}
-
-// -------------------- Function to set the clock brightness --------------------
-/*void SetBrightness(time_t t)
-{
-	int NowHour = hour(t);
-	int NowMinute = minute(t);
-
-	if ((weekday() >= 2) && (weekday() <= 6))
-		if ((NowHour > WeekNight.Hour) || ((NowHour == WeekNight.Hour) && (NowMinute >= WeekNight.Minute)) || ((NowHour == WeekMorning.Hour) && (NowMinute <= WeekMorning.Minute)) || (NowHour < WeekMorning.Hour))
-			//pixels.setBrightness(night_brightness);
-		else
-			//pixels.setBrightness(day_brightness);
-	else if ((NowHour > WeekendNight.Hour) || ((NowHour == WeekendNight.Hour) && (NowMinute >= WeekendNight.Minute)) || ((NowHour == WeekendMorning.Hour) && (NowMinute <= WeekendMorning.Minute)) || (NowHour < WeekendMorning.Hour))
-		//.setBrightness(night_brightness);
-	else
-		//pixels.setBrightness(day_brightness);
-}*/
