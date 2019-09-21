@@ -55,10 +55,10 @@ WiFiUDP ntpUDP;											// By default 'time.nist.gov' is used.
 NTPClient timeClient(ntpUDP);
 
 // -------------------- WiFi Configuration --------------------
-const char *ssid = "Familia Gil Vargas";				//  your network SSID (name)
-const char *password = "dVarAlz0725*";					// your network password
-//const char *ssid      = "CrearmeIng_Corp";			//  your network SSID (name)
-//const char *password  = "Corporativo0725*";			// your network password
+//const char *ssid = "Familia Gil Vargas";				//  your network SSID (name)
+//const char *password = "dVarAlz0725*";					// your network password
+const char *ssid      = "CrearmeIng_Corp";			//  your network SSID (name)
+const char *password  = "Corporativo0725*";			// your network password
 
 byte SetClock;
 // -------------------- Methods --------------------
@@ -107,10 +107,6 @@ void SetRTCFromNtp()
 	Serial.printf("%i/%i/%i, %i:%i:%i\r\n",dt.Year(),dt.Month(),dt.Day(),dt.Hour(),dt.Minute(),dt.Second());
 }
 
-time_t rtcGet(){
-	return Rtc.GetDateTime().Epoch32Time();
-}
-
 // -------------------- Setup function for Wol_Clock --------------------
 void setup()
 {
@@ -121,10 +117,8 @@ void setup()
 	Rtc.SetSquareWavePinClockFrequency(DS3231SquareWaveClock_1Hz);
 	WiFi.begin(ssid, password); // Try to connect to WiFi
 	delay(5000);
-	while (WiFi.status() != WL_CONNECTED) 
+	while (WiFi.status() != WL_CONNECTED) delay(500);
 	SetRTCFromNtp();								// get the time from the NTP server with timezone correction
-	setSyncProvider(rtcGet);
-	adjustTime(-5*3600);
 }
 
 // -------------------- Main program loop for Wol_Clock --------------------
@@ -147,6 +141,6 @@ void loop()
 		SetClock = 1;
 	}*/
 	RtcDateTime dt = Rtc.GetDateTime();
-	Serial.printf("%i/%i/%i, %i:%i:%i\r\n",dt.Year(),dt.Month(),dt.Day(),dt.Hour(),dt.Minute(),dt.Second());
+	Serial.printf("RTC: %i/%i/%i, %i:%i:%i\r\n",dt.Year(),dt.Month(),dt.Day(),dt.Hour(),dt.Minute(),dt.Second());
 	delay(1000);
 }
