@@ -3,16 +3,21 @@
 //************* Declare included libraries ******************************
 #include <NTPClient.h>
 //#include <Time.h>
-#include <TimeLib.h>
+//#include <TimeLib.h>
 #include <SmartLeds.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <Wire.h>
 #include <RtcDS3231.h>
 
+#define DEBUG;
+
+const int SEC_PIN = 34;
+const int LED_PIN = 14;
 const int LED_COUNT = 84;
-const int DATA_PIN = 14;
 const int CHANNEL = 0;
+
+volatile bool newSec = false;
 
 // -------------------- Declare structures --------------------
 
@@ -50,7 +55,7 @@ const int night_brightness = 16;
 const int hours_Offset_From_GMT = -5;
 
 RtcDS3231<TwoWire> Rtc(Wire);
-SmartLed pixels(LED_WS2812B, LED_COUNT, DATA_PIN, CHANNEL, DoubleBuffer);
+SmartLed pixels(LED_WS2812B, LED_COUNT, LED_PIN, CHANNEL, DoubleBuffer);
 WiFiUDP ntpUDP;											// By default 'time.nist.gov' is used.
 NTPClient timeClient(ntpUDP);
 
@@ -78,7 +83,7 @@ byte SetClock;
 		//pixels.setBrightness(day_brightness);
 }*/
 
-void Draw_Clock(time_t t, byte Phase) // Function to draw the clock
+/*void Draw_Clock(time_t t, byte Phase) // Function to draw the clock
 {
 	for (int i = 0; i < 84; i++) {
 		if (i < 60){
@@ -97,26 +102,35 @@ void Draw_Clock(time_t t, byte Phase) // Function to draw the clock
 
 	//SetBrightness(t);									// Set the clock brightness dependant on the time
 	pixels.show();										// show all the pixels
-}
+}*/
 void SetRTCFromNtp()
 {
 	timeClient.update();								// get the time from the NTP server
-	RtcDateTime dt = RtcDateTime(timeClient.getEpochTime());
+	RtcDateTime dt = RtcDateTime(timeClient.getEpochTime() - c_Epoch32OfOriginYear);
 	Rtc.SetDateTime(dt);
 	dt = Rtc.GetDateTime();
-	Serial.printf("%i/%i/%i, %i:%i:%i\r\n",dt.Year(),dt.Month(),dt.Day(),dt.Hour(),dt.Minute(),dt.Second());
+	#ifdef DEBUG
+		Serial.printf("RTC: %i/%i/%i, %i:%i:%i\r\n",dt.Year(),dt.Month(),dt.Day(),dt.Hour(),dt.Minute(),dt.Second());
+	#endif
+}
+
+void IRAM_ATTR secIsr(){
+	newSec = true;
 }
 
 // -------------------- Setup function for Wol_Clock --------------------
 void setup()
 {
-	Serial.begin(115200);
+	pinMode(SEC_PIN,INPUT);
+	attachInterrupt(digitalPinToInterrupt(SEC_PIN),secIsr,RISING);
+	#ifdef DEBUG
+		Serial.begin(115200);
+	#endif
 	Rtc.Begin();
 	Rtc.Enable32kHzPin(false);
 	Rtc.SetSquareWavePin(DS3231SquareWavePin_ModeClock);
 	Rtc.SetSquareWavePinClockFrequency(DS3231SquareWaveClock_1Hz);
 	WiFi.begin(ssid, password); // Try to connect to WiFi
-	delay(5000);
 	while (WiFi.status() != WL_CONNECTED) delay(500);
 	SetRTCFromNtp();								// get the time from the NTP server with timezone correction
 }
@@ -140,7 +154,12 @@ void loop()
 		delay(200);										// Just wait for 0.1 seconds
 		SetClock = 1;
 	}*/
-	RtcDateTime dt = Rtc.GetDateTime();
-	Serial.printf("RTC: %i/%i/%i, %i:%i:%i\r\n",dt.Year(),dt.Month(),dt.Day(),dt.Hour(),dt.Minute(),dt.Second());
-	delay(1000);
+	if (Rtc.IsDateTimeValid() && newSec){
+		RtcDateTime dt = Rtc.GetDateTime();
+		
+		#ifdef DEBUG
+			Serial.printf("RTC: %i/%i/%i, %i:%i:%i\r\n",dt.Year(),dt.Month(),dt.Day(),dt.Hour(),dt.Minute(),dt.Second());
+		#endif
+		newSec = false;
+	}
 }
