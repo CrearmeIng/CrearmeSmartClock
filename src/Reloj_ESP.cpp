@@ -1,6 +1,6 @@
-//************* Wol Clock by Jon Fuge ******************************
+//Attribution to  Jon Fuge and his code "Wol Clock"
 
-//************* Declare included libraries ******************************
+// -------------------- Declare Libraries --------------------
 #include <NTPClient.h>
 //#include <Time.h>
 //#include <TimeLib.h>
@@ -10,7 +10,8 @@
 #include <Wire.h>
 #include <RtcDS3231.h>
 
-#define DEBUG;
+// -------------------- Main Definitions --------------------
+#define DEBUG
 
 const int SEC_PIN = 34;
 const int LED_PIN = 14;
@@ -19,9 +20,6 @@ const int CHANNEL = 0;
 
 volatile bool newSec = false;
 
-// -------------------- Declare structures --------------------
-
-//Create structure for time information
 struct TimeStr
 {
 	byte Hour, Minute;
@@ -38,9 +36,6 @@ const Rgb Background = {1, 3, 10};						//All the other pixels with no informati
 const Rgb Hour = {64, 0, 32};							//The Hour hand
 const Rgb Minute = {64, 0, 32};							//The Minute hand
 const Rgb Second = {32, 0, 16};							//The Second hand
-
-
-const char ClockGoBackwards = 0;						// Make clock go forwards or backwards (dependant on hardware)
 
 // Set brightness by time for night and day mode
 const TimeStr WeekNight = {21, 30};						// Night time to go dim
