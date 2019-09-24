@@ -13,6 +13,7 @@
 // -------------------- Main Definitions --------------------
 #define DEBUG
 
+const int GES_PIN = 35;
 const int SEC_PIN = 34;
 const int LED_PIN = 14;
 const int LED_COUNT = 84;
@@ -22,16 +23,15 @@ volatile bool newSec = false;
 
 struct TimeStr
 {
-	byte Hour, Minute;
+	byte Hour, Minute, Second;
 };
 
 // -------------------- Editable Options --------------------
 
-const Rgb Twelve = {80, 128, 0};						//The colour of the "12" to give visual reference to the top
-const Rgb Quarters = {40, 64, 0};						//The colour of the "quarters" 3, 6 & 9 to give visual reference
-const Rgb Divisions = {32, 20, 0};						//The colour of the "divisions" 1,2,4,5,7,8,10 & 11 to give visual reference
+const Rgb Twelve = {64, 10, 0};						//The colour of the "12" to give visual reference to the top
+const Rgb Quarters = {20, 2, 0};						//The colour of the "quarters" 3, 6 & 9 to give visual reference
+const Rgb Divisions = {8, 16, 0};						//The colour of the "divisions" 1,2,4,5,7,8,10 & 11 to give visual reference
 const Rgb Background = {1, 3, 10};						//All the other pixels with no information
-
 
 const Rgb Hour = {64, 0, 32};							//The Hour hand
 const Rgb Minute = {64, 0, 32};							//The Minute hand
@@ -43,8 +43,6 @@ const TimeStr WeekMorning = {6, 15};						//Morning time to go bright
 const TimeStr WeekendNight = {21, 30};						// Night time to go dim
 const TimeStr WeekendMorning = {9, 30};					//Morning time to go bright
 
-const int day_brightness = 128;
-const int night_brightness = 16;
 
 // Set your timezone in hours difference rom GMT
 const int hours_Offset_From_GMT = -5;
@@ -62,42 +60,34 @@ const char *password  = "Corporativo0725*";			// your network password
 
 byte SetClock;
 // -------------------- Methods --------------------
-/*void SetBrightness(time_t t)						// Function to set the clock brightness
-{
-	int NowHour = hour(t);
-	int NowMinute = minute(t);
+void resetPixels(){
+	for (int i = 0; i < 84; i++) {
+		pixels[i] = Rgb{0,0,0};
+	}
+	pixels.show();										// show all the pixels
+}
 
-	if ((weekday() >= 2) && (weekday() <= 6))
-		if ((NowHour > WeekNight.Hour) || ((NowHour == WeekNight.Hour) && (NowMinute >= WeekNight.Minute)) || ((NowHour == WeekMorning.Hour) && (NowMinute <= WeekMorning.Minute)) || (NowHour < WeekMorning.Hour))
-			//pixels.setBrightness(night_brightness);
-		else
-			//pixels.setBrightness(day_brightness);
-	else if ((NowHour > WeekendNight.Hour) || ((NowHour == WeekendNight.Hour) && (NowMinute >= WeekendNight.Minute)) || ((NowHour == WeekendMorning.Hour) && (NowMinute <= WeekendMorning.Minute)) || (NowHour < WeekendMorning.Hour))
-		//.setBrightness(night_brightness);
-	else
-		//pixels.setBrightness(day_brightness);
-}*/
-
-/*void Draw_Clock(time_t t, byte Phase) // Function to draw the clock
+void Draw_Clock(RtcDateTime t) // Function to draw the clock
 {
 	for (int i = 0; i < 84; i++) {
 		if (i < 60){
-			if (i == second(t)) pixels[i] = Second;
-			else if (i == minute(t)) pixels[i] = Minute;
+			if (i == t.Second()) pixels[i] = Second;
+			else if (i == t.Minute()) pixels[i] = Minute;
 			else if(i == 0) pixels[i] = Twelve;
 			else if(i%15 == 0) pixels[i] = Quarters;
 			else if(i%5 == 0) pixels[i] = Divisions;
 			else pixels[i] = Background;
 		} else {
-			if (i == ((hour(t) % 12) * 2) + 60) pixels[i] = Hour;
+			if (i == (((t.Hour() + hours_Offset_From_GMT) % 12) * 2) + 60) pixels[i] = Hour;
 			else if(i == 60) pixels[i] = Twelve;
+			else if((i-60)%6 == 0) pixels[i] = Quarters;
+			else if((i-60)%2 == 0) pixels[i] = Divisions;
 			else pixels[i] = Background;
 		}
 	}
-
 	//SetBrightness(t);									// Set the clock brightness dependant on the time
 	pixels.show();										// show all the pixels
-}*/
+}
 void SetRTCFromNtp()
 {
 	timeClient.update();								// get the time from the NTP server
@@ -125,6 +115,7 @@ void setup()
 	Rtc.Enable32kHzPin(false);
 	Rtc.SetSquareWavePin(DS3231SquareWavePin_ModeClock);
 	Rtc.SetSquareWavePinClockFrequency(DS3231SquareWaveClock_1Hz);
+	resetPixels();
 	WiFi.begin(ssid, password); // Try to connect to WiFi
 	while (WiFi.status() != WL_CONNECTED) delay(500);
 	SetRTCFromNtp();								// get the time from the NTP server with timezone correction
@@ -151,10 +142,13 @@ void loop()
 	}*/
 	if (Rtc.IsDateTimeValid() && newSec){
 		RtcDateTime dt = Rtc.GetDateTime();
-		
+		Draw_Clock(dt);
 		#ifdef DEBUG
 			Serial.printf("RTC: %i/%i/%i, %i:%i:%i\r\n",dt.Year(),dt.Month(),dt.Day(),dt.Hour(),dt.Minute(),dt.Second());
 		#endif
+		if ((dt.Hour() == 0) && (dt.Minute() == 0) && (dt.Second() == 0) && (WiFi.status() == WL_CONNECTED)) {
+			SetRTCFromNtp();
+		}
 		newSec = false;
 	}
 }
